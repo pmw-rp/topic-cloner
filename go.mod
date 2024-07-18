@@ -1,4 +1,4 @@
-module topic-exporter-importer
+module clone
 
 go 1.22.2
 

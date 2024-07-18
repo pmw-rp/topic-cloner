@@ -14,16 +14,10 @@ import (
 	"strings"
 )
 
-// Creates new Kafka and Admin clients to communicate with a cluster.
+// Creates a new admin client to communicate with a cluster.
 //
-// The `prefix` must be set to either `Source` or `Destination` as it
+// The `prefix` must be set to either `source` or `destination` as it
 // determines what settings are read from the configuration.
-//
-// The topics listed in `source.topics` are the topics that will be pushed by
-// the agent from the source cluster to the destination cluster.
-//
-// The topics listed in `destination.topics` are the topics that will be pulled
-// by the agent from the destination cluster to the source cluster.
 func initClient(prefix string) *kadm.Client {
 
 	var err error
@@ -33,8 +27,6 @@ func initClient(prefix string) *kadm.Client {
 	var opts []kgo.Opt
 	opts = append(opts,
 		kgo.SeedBrokers(strings.Split(servers, ",")...),
-		// https://github.com/redpanda-data/redpanda/issues/8546
-		kgo.ProducerBatchCompression(kgo.NoCompression()),
 	)
 
 	tlsPath := fmt.Sprintf("%s.tls", prefix)
@@ -80,6 +72,7 @@ func initClient(prefix string) *kadm.Client {
 	return adm
 }
 
+// Reads a file into memory in a byte slice
 func read(name string) []byte {
 	log.Infof("Reading topic data from file: %v", name)
 	file, err := os.Open(name)
@@ -108,6 +101,7 @@ func read(name string) []byte {
 	return bs
 }
 
+// Writes a byte slice to a file
 func write(data []byte, name string) {
 	err := os.WriteFile(name, data, os.FileMode(0600))
 	if err != nil {
