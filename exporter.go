@@ -13,9 +13,9 @@ func getTopicRegex() string {
 	patterns := config.Strings("source.topics")
 	for _, pattern := range patterns {
 		if result == "" {
-			result = "(" + pattern + ")"
+			result = "^" + pattern + "$"
 		} else {
-			result = result + "|" + "(" + pattern + ")"
+			result = result + "|" + "^" + pattern + "$"
 		}
 	}
 	return result
@@ -23,7 +23,9 @@ func getTopicRegex() string {
 
 func ExportTopics(adm *kadm.Client) []byte {
 
-	pattern, err := regexp.Compile(getTopicRegex())
+	regex := getTopicRegex()
+	log.Debugf("Using topic regex: %v", regex)
+	pattern, err := regexp.Compile(regex)
 	if err != nil {
 		log.Fatalf("Unable to compile topic regex: %v", err)
 	}
