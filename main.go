@@ -62,14 +62,14 @@ func initClient(prefix string) *kadm.Client {
 	}
 	// Check connectivity to cluster
 	if err = client.Ping(context.Background()); err != nil {
-		log.Errorf("Unable to ping %s cluster: %s",
+		log.Fatalf("Unable to ping %s cluster: %s",
 			prefix, err.Error())
 	}
 
 	adm := kadm.NewClient(client)
 	brokers, err := adm.ListBrokers(context.Background())
 	if err != nil {
-		log.Errorf("Unable to list brokers: %v", err)
+		log.Fatalf("Unable to list brokers: %v", err)
 	}
 	log.Infof("Created %s client", prefix)
 	for _, broker := range brokers {
@@ -89,7 +89,7 @@ func read(name string) []byte {
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-			log.Fatalf("Unable to close file")
+			log.Errorf("Unable to close file")
 		}
 	}(file)
 

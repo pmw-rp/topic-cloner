@@ -42,10 +42,9 @@ func InitConfig(path *string) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	//config.Load(defaultConfig, nil)
 	log.Infof("Reading config file: %s", *path)
 	if err := config.Load(file.Provider(*path), yaml.Parser()); err != nil {
-		log.Errorf("Error loading config: %v", err)
+		log.Fatalf("Error loading config: %v", err)
 	}
 	validate()
 	log.Debugf(config.Sprint())
