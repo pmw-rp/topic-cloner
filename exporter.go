@@ -2,43 +2,36 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
 	"github.com/twmb/franz-go/pkg/kadm"
-	"github.com/twmb/franz-go/pkg/kgo"
-	"github.com/twmb/franz-go/pkg/sasl/scram"
 	"regexp"
 )
 
-func ExportTopics() []byte {
-
-	seeds := []string{"seed-fa015309.certnoj7m575jtvbg730.fmc.prd.cloud.redpanda.com:9092"}
-
-	client, err := kgo.NewClient(
-		kgo.SeedBrokers(seeds...),
-		kgo.DialTLSConfig(new(tls.Config)),
-		kgo.SASL(scram.Auth{
-			User: "pmw",
-			Pass: "s6ldDzK3AUinQtQ5dejbiGhYtrDPjI",
-		}.AsSha256Mechanism()))
-
-	if err != nil {
-		panic(err)
+func getTopicRegex() string {
+	result := ""
+	patterns := config.Strings("source.topics")
+	for _, pattern := range patterns {
+		if result == "" {
+			result = "(" + pattern + ")"
+		} else {
+			result = result + "|" + "(" + pattern + ")"
+		}
 	}
-	defer client.Close()
+	return result
+}
 
-	admin := kadm.NewClient(client)
-	defer admin.Close()
+func ExportTopics(adm *kadm.Client) []byte {
 
-	pattern, err := regexp.Compile("owlshop-.*")
+	pattern, err := regexp.Compile(getTopicRegex())
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to compile topic regex: %v", err)
 	}
 
 	ctx := context.Background()
-	topicDetails, err := admin.ListTopicsWithInternal(ctx)
+	topicDetails, err := adm.ListTopicsWithInternal(ctx)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to list topics from source cluster: %v", err)
 	}
 
 	topicConfigs := make(map[string]TopicConf, 0)
@@ -60,9 +53,9 @@ func ExportTopics() []byte {
 		i++
 	}
 
-	resourceConfigs, err := admin.DescribeTopicConfigs(ctx, topics...)
+	resourceConfigs, err := adm.DescribeTopicConfigs(ctx, topics...)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to describe topic configs from source: %v", err)
 	}
 
 	for _, config := range resourceConfigs {
@@ -81,7 +74,7 @@ func ExportTopics() []byte {
 
 	data, err := json.Marshal(topicConfigs)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to marshall topic configs into json: %v", err)
 	}
 
 	return data

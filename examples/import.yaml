@@ -1,0 +1,8 @@
+source:
+  file: topics.json
+destination:
+  bootstrap_servers: 127.0.0.1:9092
+  max_version: "3.0.0" # maximum kafka protocol version
+  tls:
+    enabled: false
+  replication_factor: 1 # If defined, override the replication factor

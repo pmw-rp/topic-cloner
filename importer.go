@@ -3,17 +3,17 @@ package main
 import (
 	"context"
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
 	"github.com/twmb/franz-go/pkg/kadm"
-	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func ImportTopics(data []byte) {
+func ImportTopics(admin *kadm.Client, data []byte) {
 
 	topicConfigs := make(map[string]TopicConf, 0)
 
 	err := json.Unmarshal(data, &topicConfigs)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Unable to unmarshall topic data: %v", err)
 	}
 
 	topics := make([]string, len(topicConfigs))
@@ -23,31 +23,31 @@ func ImportTopics(data []byte) {
 		i++
 	}
 
-	seeds := []string{"127.0.0.1:9092"}
-
-	client, err := kgo.NewClient(
-		kgo.SeedBrokers(seeds...),
-	)
-
-	if err != nil {
-		panic(err)
-	}
-	defer client.Close()
-
-	admin := kadm.NewClient(client)
-	defer admin.Close()
-
 	ctx := context.Background()
 	topicsThatAlreadyExist, err := admin.ListTopicsWithInternal(ctx, topics...)
 
+	setRep := config.Exists("destination.replication_factor")
+	rep := -1
+	if setRep {
+		rep = config.Int("destination.replication_factor")
+		log.Warnf("Destination cluster has replication factor hardcoded in config to %v", rep)
+	}
+
 	for _, topic := range topics {
 		if topicsThatAlreadyExist.Has(topic) {
-			println("Ignoring topic since it exists")
+			log.Infof("Not importing topic since it already exists on destination: %v", topic)
 		} else {
 			conf := topicConfigs[topic]
-			_, err := admin.CreateTopic(ctx, conf.Partitions /*conf.Replicas*/, 1, conf.Configs, conf.Name)
+			if setRep {
+				_, err = admin.CreateTopic(ctx, conf.Partitions, int16(rep), conf.Configs, conf.Name)
+			} else {
+				_, err = admin.CreateTopic(ctx, conf.Partitions, conf.Replicas, conf.Configs, conf.Name)
+			}
+
 			if err != nil {
-				panic(err)
+				log.Fatalf("Unable to create topic on destination: %v", err)
+			} else {
+				log.Infof("Imported topic: %v", topic)
 			}
 		}
 	}

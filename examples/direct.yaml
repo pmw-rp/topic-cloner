@@ -1,0 +1,17 @@
+source:
+  bootstrap_servers: seed-something.somewhere.fmc.prd.cloud.redpanda.com:9092
+  sasl:
+    sasl_method: SCRAM-SHA-256
+    sasl_username: some-username
+    sasl_password: some-password
+  tls:
+    enabled: true
+  topics:
+    - _internal_.*
+    - _redpanda.*
+destination:
+  bootstrap_servers: 127.0.0.1:9092
+  max_version: "3.0.0" # maximum kafka protocol version
+  tls:
+    enabled: false
+  replication_factor: 1 # If defined, override the replication factor
