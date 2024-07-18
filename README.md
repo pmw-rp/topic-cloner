@@ -1,6 +1,24 @@
 # Topic Cloner
 
-This tool can be used to clone topics from one cluster to another.
+This tool can be used to copy topic definitions from one cluster to another - example use cases include:
+
+- Promoting topics from test environments to production
+- Creating topics on a DR cluster prior to data replication
+
+### What is copied?
+
+- Partition count
+- Replication factor
+- Any topic-specific configuration parameters
+
+### What isn't copied?
+
+- Data
+
+This tool does not clone data - only topic definitions! To migrate data, see Redpanda Connect, Redpanda Edge Agent,
+MirrorMaker 2 or similar.
+
+---
 
 # Usage
 
@@ -28,6 +46,8 @@ Usage of ./clone:
         logging level (default "info")
 
 ```
+
+---
 
 # Configuration
 
