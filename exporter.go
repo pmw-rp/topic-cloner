@@ -36,7 +36,7 @@ func ExportTopics(adm *kadm.Client) []byte {
 		log.Fatalf("Unable to list topics from source cluster: %v", err)
 	}
 
-	topicConfigs := make(map[string]TopicConf, 0)
+	topicConfigs := make(map[string]TopicConf)
 
 	for s, detail := range topicDetails {
 		if pattern.MatchString(s) {

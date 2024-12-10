@@ -3,51 +3,98 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/twmb/franz-go/pkg/kadm"
 )
 
+func updateTopic(ctx context.Context, admin *kadm.Client, new, old TopicConf) []error {
+	errors := make([]error, 0)
+
+	if old.Replicas != new.Replicas {
+		errors = append(errors, fmt.Errorf("not able to change replica count to %v on existing topic %v", new.Replicas, new.Name))
+	}
+
+	if new.Partitions > old.Partitions {
+		_, err := admin.UpdatePartitions(ctx, int(new.Partitions), new.Name)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("unable to increase partitions to %v on topic %v: %w", new.Partitions, new.Name, err))
+		}
+	} else {
+		errors = append(errors, fmt.Errorf("unable to reduce partitions to %v on topic %v", new.Partitions, new.Name))
+	}
+
+	alterConfigs := make([]kadm.AlterConfig, 0)
+	for key, newValue := range new.Configs {
+		if oldValue, ok := old.Configs[key]; ok {
+			if newValue != oldValue {
+				alterConfigs = append(alterConfigs, kadm.AlterConfig{Name: key, Value: newValue})
+			}
+		}
+	}
+	if len(alterConfigs) > 0 {
+		_, err := admin.ValidateAlterTopicConfigs(ctx, alterConfigs, new.Name)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("unable to validate alter topic configs due to %w", err))
+		} else {
+			_, err := admin.AlterTopicConfigs(ctx, alterConfigs, new.Name)
+			if err != nil {
+				errors = append(errors, fmt.Errorf("unable to alter topic configs due to %w", err))
+			}
+		}
+	}
+
+	return errors
+}
+
+func loadTopics(data []byte) map[string]TopicConf {
+	topics := make(map[string]TopicConf)
+	err := json.Unmarshal(data, &topics)
+	if err != nil {
+		panic(fmt.Errorf("unable to unmarshal json topic data %w", err))
+	}
+	return topics
+}
+
 func ImportTopics(admin *kadm.Client, data []byte) {
 
-	topicConfigs := make(map[string]TopicConf, 0)
-
-	err := json.Unmarshal(data, &topicConfigs)
-	if err != nil {
-		log.Fatalf("Unable to unmarshall topic data: %v", err)
-	}
-
-	topics := make([]string, len(topicConfigs))
-	i := 0
-	for k := range topicConfigs {
-		topics[i] = k
-		i++
-	}
+	topicsToBeImported := loadTopics(data)
+	topicsThatAlreadyExist := loadTopics(ExportTopics(admin))
 
 	ctx := context.Background()
-	topicsThatAlreadyExist, err := admin.ListTopicsWithInternal(ctx, topics...)
 
 	setRep := config.Exists("destination.replication_factor")
-	rep := -1
 	if setRep {
-		rep = config.Int("destination.replication_factor")
-		log.Warnf("Destination cluster has replication factor hardcoded in config to %v", rep)
+		log.Warnf("destination cluster has replication factor hardcoded in config to %v", config.Int("destination.replication_factor"))
 	}
 
-	for _, topic := range topics {
-		if topicsThatAlreadyExist.Has(topic) {
-			log.Infof("Not importing topic since it already exists on destination: %v", topic)
-		} else {
-			conf := topicConfigs[topic]
-			if setRep {
-				_, err = admin.CreateTopic(ctx, conf.Partitions, int16(rep), conf.Configs, conf.Name)
+	updateExistingTopics := config.Bool("destination.update_existing_topics")
+
+	for _, topicToBeImported := range topicsToBeImported {
+		if topicThatAlreadyExists, ok := topicsThatAlreadyExist[topicToBeImported.Name]; ok {
+			if updateExistingTopics {
+				errors := updateTopic(ctx, admin, topicToBeImported, topicThatAlreadyExists)
+				for _, err := range errors {
+					log.Warnf(err.Error())
+				}
 			} else {
-				_, err = admin.CreateTopic(ctx, conf.Partitions, conf.Replicas, conf.Configs, conf.Name)
+				log.Infof("not importing topic since it already exists on destination: %v", topicToBeImported)
+			}
+		} else {
+			conf := topicsToBeImported[topicToBeImported.Name]
+			var replication int16
+			if setRep {
+				replication = int16(config.Int("destination.replication_factor"))
+			} else {
+				replication = conf.Replicas
 			}
 
+			_, err := admin.CreateTopic(ctx, conf.Partitions, replication, conf.Configs, conf.Name)
+
 			if err != nil {
-				log.Fatalf("Unable to create topic on destination: %v", err)
+				log.Fatalf("unable to create topic %v on destination: %v", conf.Name, err)
 			} else {
-				log.Infof("Imported topic: %v", topic)
+				log.Infof("imported topic: %v", conf.Name)
 			}
 		}
 	}

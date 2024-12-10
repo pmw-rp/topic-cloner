@@ -61,9 +61,9 @@ func initClient(prefix string) *kadm.Client {
 	adm := kadm.NewClient(client)
 	brokers, err := adm.ListBrokers(context.Background())
 	if err != nil {
-		log.Fatalf("Unable to list brokers: %v", err)
+		log.Fatalf("unable to list brokers: %v", err)
 	}
-	log.Infof("Created %s client", prefix)
+	log.Infof("created %s client", prefix)
 	for _, broker := range brokers {
 		brokerJson, _ := json.Marshal(broker)
 		log.Debugf("%s broker: %s", prefix, string(brokerJson))
@@ -74,29 +74,29 @@ func initClient(prefix string) *kadm.Client {
 
 // Reads a file into memory in a byte slice
 func read(name string) []byte {
-	log.Infof("Reading topic data from file: %v", name)
+	log.Infof("reading topic data from file: %v", name)
 	file, err := os.Open(name)
 	if err != nil {
-		log.Fatalf("Unable to read file %v: %v", name, err)
+		log.Fatalf("unable to read file %v: %v", name, err)
 	}
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-			log.Errorf("Unable to close file")
+			log.Errorf("unable to close file")
 		}
 	}(file)
 
 	// Get the file size
 	stat, err := file.Stat()
 	if err != nil {
-		log.Fatalf("Unable to get the size of file %v: %v", name, err)
+		log.Fatalf("unable to get the size of file %v: %v", name, err)
 	}
 
 	// Read the file into a byte slice
 	bs := make([]byte, stat.Size())
 	_, err = bufio.NewReader(file).Read(bs)
 	if err != nil && err != io.EOF {
-		log.Fatalf("Unable to create reader for file %v: %v", name, err)
+		log.Fatalf("unable to create reader for file %v: %v", name, err)
 	}
 	return bs
 }
@@ -105,9 +105,9 @@ func read(name string) []byte {
 func write(data []byte, name string) {
 	err := os.WriteFile(name, data, os.FileMode(0600))
 	if err != nil {
-		log.Fatalf("Unable to write topic data to file %v: %v", name, err)
+		log.Fatalf("unable to write topic data to file %v: %v", name, err)
 	} else {
-		log.Infof("Wrote topic data to file: %v", name)
+		log.Infof("wrote topic data to file: %v", name)
 	}
 }
 
