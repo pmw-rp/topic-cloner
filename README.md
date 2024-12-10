@@ -35,7 +35,7 @@ Or run directly:
 go run . --config config.yaml
 ```
 
-Usage can be see as follows:
+Usage can be seen as follows:
 
 ```text
 $ ./clone --help
@@ -83,4 +83,4 @@ source:
 
 ## Destination
 
-This is is configured exactly as with a source.
+This is configured exactly as with a source.

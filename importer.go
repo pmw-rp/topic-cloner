@@ -12,7 +12,7 @@ func updateTopic(ctx context.Context, admin *kadm.Client, new, old TopicConf) []
 	errors := make([]error, 0)
 
 	if old.Replicas != new.Replicas {
-		errors = append(errors, fmt.Errorf("Not able to change replica count to %v on existing topic %v", new.Replicas, new.Name))
+		errors = append(errors, fmt.Errorf("not able to change replica count to %v on existing topic %v", new.Replicas, new.Name))
 	}
 
 	if new.Partitions > old.Partitions {
@@ -20,6 +20,8 @@ func updateTopic(ctx context.Context, admin *kadm.Client, new, old TopicConf) []
 		if err != nil {
 			errors = append(errors, fmt.Errorf("unable to increase partitions to %v on topic %v: %w", new.Partitions, new.Name, err))
 		}
+	} else {
+		errors = append(errors, fmt.Errorf("unable to reduce partitions to %v on topic %v", new.Partitions, new.Name))
 	}
 
 	alterConfigs := make([]kadm.AlterConfig, 0)
@@ -63,7 +65,7 @@ func ImportTopics(admin *kadm.Client, data []byte) {
 
 	setRep := config.Exists("destination.replication_factor")
 	if setRep {
-		log.Warnf("Destination cluster has replication factor hardcoded in config to %v", config.Int("destination.replication_factor"))
+		log.Warnf("destination cluster has replication factor hardcoded in config to %v", config.Int("destination.replication_factor"))
 	}
 
 	updateExistingTopics := config.Bool("destination.update_existing_topics")
@@ -71,9 +73,12 @@ func ImportTopics(admin *kadm.Client, data []byte) {
 	for _, topicToBeImported := range topicsToBeImported {
 		if topicThatAlreadyExists, ok := topicsThatAlreadyExist[topicToBeImported.Name]; ok {
 			if updateExistingTopics {
-				updateTopic(ctx, admin, topicToBeImported, topicThatAlreadyExists)
+				errors := updateTopic(ctx, admin, topicToBeImported, topicThatAlreadyExists)
+				for _, err := range errors {
+					log.Warnf(err.Error())
+				}
 			} else {
-				log.Infof("Not importing topic since it already exists on destination: %v", topicToBeImported)
+				log.Infof("not importing topic since it already exists on destination: %v", topicToBeImported)
 			}
 		} else {
 			conf := topicsToBeImported[topicToBeImported.Name]
@@ -87,9 +92,9 @@ func ImportTopics(admin *kadm.Client, data []byte) {
 			_, err := admin.CreateTopic(ctx, conf.Partitions, replication, conf.Configs, conf.Name)
 
 			if err != nil {
-				log.Fatalf("Unable to create topicToBeImported on destination: %v", err)
+				log.Fatalf("unable to create topic %v on destination: %v", conf.Name, err)
 			} else {
-				log.Infof("Imported topicToBeImported: %v", topicToBeImported)
+				log.Infof("imported topic: %v", conf.Name)
 			}
 		}
 	}

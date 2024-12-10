@@ -42,7 +42,7 @@ func InitConfig(path *string) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	log.Infof("Reading config file: %s", *path)
+	log.Infof("reading config file: %s", *path)
 	if err := config.Load(file.Provider(*path), yaml.Parser()); err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
@@ -53,16 +53,16 @@ func InitConfig(path *string) {
 // Validate the config
 func validate() {
 	if !config.Exists("source.bootstrap_servers") && !config.Exists("source.file") {
-		panic("Config must define a file or a cluster as a source")
+		panic("config must define a file or a cluster as a source")
 	}
 	if config.Exists("source.bootstrap_servers") && config.Exists("source.file") {
-		panic("Config must define a single source - file or cluster")
+		panic("config must define a single source - file or cluster")
 	}
 	if !config.Exists("destination.bootstrap_servers") && !config.Exists("destination.file") {
-		panic("Config must define a file or a cluster as a destination")
+		panic("config must define a file or a cluster as a destination")
 	}
 	if config.Exists("destination.bootstrap_servers") && config.Exists("destination.file") {
-		panic("Config must define a single destination - file or cluster")
+		panic("config must define a single destination - file or cluster")
 	}
 }
 
