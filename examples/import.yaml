@@ -2,6 +2,7 @@ source:
   file: topics.json
 destination:
   bootstrap_servers: 127.0.0.1:9092
+  update_existing_topics: false
   max_version: "3.0.0" # maximum kafka protocol version
   tls:
     enabled: false
