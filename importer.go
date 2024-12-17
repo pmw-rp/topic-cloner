@@ -30,7 +30,7 @@ func updateTopic(ctx context.Context, admin *kadm.Client, new, old TopicConf) []
 	alterConfigs := make([]kadm.AlterConfig, 0)
 	for key, newValue := range new.Configs {
 		if oldValue, ok := old.Configs[key]; ok {
-			if newValue != oldValue {
+			if *newValue != *oldValue {
 				alterConfigs = append(alterConfigs, kadm.AlterConfig{Name: key, Value: newValue})
 			}
 		}
@@ -38,7 +38,7 @@ func updateTopic(ctx context.Context, admin *kadm.Client, new, old TopicConf) []
 	if len(alterConfigs) > 0 {
 		log.Infof("updating topic %v with the following configs", new.Name)
 		for _, alterConfig := range alterConfigs {
-			log.Infof("   %v = %v", alterConfig.Name, alterConfig.Value)
+			log.Infof("   %s = %s", alterConfig.Name, *alterConfig.Value)
 		}
 		_, err := admin.ValidateAlterTopicConfigs(ctx, alterConfigs, new.Name)
 		if err != nil {
@@ -80,7 +80,7 @@ func ImportTopics(admin *kadm.Client, data []byte) {
 	for _, topicToBeImported := range topicsToBeImported {
 		if topicThatAlreadyExists, ok := topicsThatAlreadyExist[topicToBeImported.Name]; ok {
 			if updateExistingTopics {
-				log.Infof("updating topic since it already exists on destination: %v", topicToBeImported)
+				log.Infof("topic already exists on destination: %s", topicToBeImported.Name)
 				errors := updateTopic(ctx, admin, topicToBeImported, topicThatAlreadyExists)
 				for _, err := range errors {
 					log.Warnf(err.Error())
