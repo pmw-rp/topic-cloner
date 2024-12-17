@@ -16,23 +16,30 @@ func updateTopic(ctx context.Context, admin *kadm.Client, new, old TopicConf) []
 	}
 
 	if new.Partitions > old.Partitions {
+		log.Infof("increasing partition count for topic %v (%v -> %v)", new.Name, old.Partitions, new.Partitions)
 		_, err := admin.UpdatePartitions(ctx, int(new.Partitions), new.Name)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("unable to increase partitions to %v on topic %v: %w", new.Partitions, new.Name, err))
 		}
 	} else {
-		errors = append(errors, fmt.Errorf("unable to reduce partitions to %v on topic %v", new.Partitions, new.Name))
+		if new.Partitions < old.Partitions {
+			errors = append(errors, fmt.Errorf("unable to reduce partitions to %v on topic %v", new.Partitions, new.Name))
+		}
 	}
 
 	alterConfigs := make([]kadm.AlterConfig, 0)
 	for key, newValue := range new.Configs {
 		if oldValue, ok := old.Configs[key]; ok {
-			if newValue != oldValue {
+			if *newValue != *oldValue {
 				alterConfigs = append(alterConfigs, kadm.AlterConfig{Name: key, Value: newValue})
 			}
 		}
 	}
 	if len(alterConfigs) > 0 {
+		log.Infof("updating topic %v with the following configs", new.Name)
+		for _, alterConfig := range alterConfigs {
+			log.Infof("   %s = %s", alterConfig.Name, *alterConfig.Value)
+		}
 		_, err := admin.ValidateAlterTopicConfigs(ctx, alterConfigs, new.Name)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("unable to validate alter topic configs due to %w", err))
@@ -73,6 +80,7 @@ func ImportTopics(admin *kadm.Client, data []byte) {
 	for _, topicToBeImported := range topicsToBeImported {
 		if topicThatAlreadyExists, ok := topicsThatAlreadyExist[topicToBeImported.Name]; ok {
 			if updateExistingTopics {
+				log.Infof("topic already exists on destination: %s", topicToBeImported.Name)
 				errors := updateTopic(ctx, admin, topicToBeImported, topicThatAlreadyExists)
 				for _, err := range errors {
 					log.Warnf(err.Error())
